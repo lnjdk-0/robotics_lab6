@@ -12,7 +12,7 @@ import rospy
 from robot_vision_lectures.msg import XYZarray, SphereParams
 
 msg_received = False
-
+filtered = True
 
 def get_msg(data):
     """
@@ -74,6 +74,20 @@ def sphere_fit(points):
 
     POINTS = np.linalg.lstsq(A, B, rcond=None)
     return POINTS
+    
+def low_pass_filter(current_value, previous_value, alpha):
+    """
+    Applies a low-pass filter to the input values.
+
+    Args:
+        current_value (float): The current value to be filtered.
+        previous_value (float): The previous value before filtering.
+        alpha (float): The filter gain, between 0 and 1.
+
+    Returns:
+        filtered_value (float): The filtered output value.
+    """
+    return (1 - alpha) * previous_value + alpha * current_value
 
 if __name__ == '__main__':
     # define the node and subcribers and publishers
@@ -85,13 +99,28 @@ if __name__ == '__main__':
     # set the loop frequency
     rate = rospy.Rate(10)
 
+    # Initialize previous values for low-pass filter
+    prev_xc, prev_yc, prev_zc, prev_radius = 0, 0, 0, 0
+
+    # Set filter gain (alpha) between 0 and 1
+    alpha = 0.1
+
     while not rospy.is_shutdown():
         if msg_received:
             POINTS = sphere_fit(point_arr)
             radius = get_radius(POINTS)
             xc, yc, zc, _ = POINTS[0]
 
-            sphere_params = SphereParams(float(xc), float(yc), float(zc), radius)
+            # Apply low-pass filter to the sphere parameters
+            filtered_xc = low_pass_filter(xc, prev_xc, alpha)
+            filtered_yc = low_pass_filter(yc, prev_yc, alpha)
+            filtered_zc = low_pass_filter(zc, prev_zc, alpha)
+            filtered_radius = low_pass_filter(radius, prev_radius, alpha)
+
+            # Update previous values for the next iteration
+            prev_xc, prev_yc, prev_zc, prev_radius = filtered_xc, filtered_yc, filtered_zc, filtered_radius
+
+            sphere_params = SphereParams(float(filtered_xc), float(filtered_yc), float(filtered_zc), filtered_radius)
             pub.publish(sphere_params)
 
         rate.sleep()
