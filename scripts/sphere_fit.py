@@ -12,7 +12,6 @@ import rospy
 from robot_vision_lectures.msg import XYZarray, SphereParams
 
 msg_received = False
-filtered = True
 
 def get_msg(data):
     """
@@ -103,7 +102,7 @@ if __name__ == '__main__':
     prev_xc, prev_yc, prev_zc, prev_radius = 0, 0, 0, 0
 
     # Set filter gain (alpha) between 0 and 1
-    alpha = 0.1
+    alpha = 0.02
 
     while not rospy.is_shutdown():
         if msg_received:
